@@ -9,7 +9,7 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r backend/requirements.txt
 python seed.py
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
 ## Frontend
