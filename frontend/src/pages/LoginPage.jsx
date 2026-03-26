@@ -10,6 +10,7 @@ const initialForm = {
   email: 'owner@gymflow.com',
   password: 'demo123',
 };
+const apiBaseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
 export default function LoginPage() {
   const [form, setForm] = useState(initialForm);
@@ -36,7 +37,7 @@ export default function LoginPage() {
       const errorMessage = error.response?.data?.detail
         ? error.response.data.detail
         : error.message === 'Network Error'
-          ? 'Failed to reach the server. Make sure the backend is running on http://localhost:8000'
+          ? `Failed to reach the server. Check the backend URL or CORS settings for ${apiBaseUrl}`
           : 'Login failed. Please try again.';
       toast.error(errorMessage);
     },
