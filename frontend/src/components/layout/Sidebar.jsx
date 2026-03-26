@@ -1,6 +1,15 @@
-import { NavLink } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
 
 export default function Sidebar({ navItems, mobileOpen, onClose, user }) {
+  const logout = useAuthStore((state) => state.logout);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
   const content = (
     <div className="flex h-full flex-col bg-sidebar px-5 py-6 text-slate-100">
       <div className="mb-10 flex items-center gap-3">
@@ -40,6 +49,14 @@ export default function Sidebar({ navItems, mobileOpen, onClose, user }) {
         <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Signed in</p>
         <p className="mt-2 text-base font-semibold text-white">{user?.name}</p>
         <p className="text-sm text-slate-400">{user?.email}</p>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+        >
+          <LogOut size={15} />
+          Logout
+        </button>
       </div>
     </div>
   );
