@@ -8,7 +8,7 @@ export function formatCurrency(value) {
 
 export function formatDate(value, options = {}) {
   if (!value) {
-    return '—';
+    return '--';
   }
 
   return new Intl.DateTimeFormat('en-US', {
@@ -20,7 +20,7 @@ export function formatDate(value, options = {}) {
 
 export function formatTime(value) {
   if (!value) {
-    return '—';
+    return '--';
   }
 
   const date = typeof value === 'string' && value.includes('T') ? new Date(value) : new Date(`2025-01-01T${value}`);

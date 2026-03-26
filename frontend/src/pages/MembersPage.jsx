@@ -78,6 +78,8 @@ export default function MembersPage() {
     createMutation.mutate(form);
   };
 
+  const members = membersQuery.data || [];
+
   return (
     <div className="space-y-6">
       <section className="panel p-5">
@@ -95,7 +97,7 @@ export default function MembersPage() {
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white transition hover:bg-slate-900"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-semibold text-white transition hover:bg-slate-900 sm:w-auto"
           >
             <Plus size={18} />
             Add Member
@@ -103,7 +105,46 @@ export default function MembersPage() {
         </div>
       </section>
 
-      <section className="panel overflow-hidden">
+      <section className="space-y-3 md:hidden">
+        {membersQuery.isLoading
+          ? Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="panel p-4">
+                <LoadingSkeleton className="h-20 w-full" />
+              </div>
+            ))
+          : members.map((member) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => setSelectedMemberId(member.id)}
+                className={`panel w-full p-4 text-left transition hover:border-slate-300 ${
+                  member.status === 'at_risk' ? 'border-rose-200 bg-rose-50/60' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">
+                    {initials(member.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900">{member.name}</p>
+                      <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(member.status)}`}>
+                        {member.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className="mt-1 break-all text-sm text-slate-500">{member.email}</p>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-600">
+                      <p>Plan: {member.plan_type}</p>
+                      <p>Attendance: {member.attendance_rate}%</p>
+                      <p>Last visit: {formatDate(member.last_visit)}</p>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+      </section>
+
+      <section className="panel hidden overflow-hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
@@ -126,7 +167,7 @@ export default function MembersPage() {
                       </td>
                     </tr>
                   ))
-                : membersQuery.data?.map((member) => (
+                : members.map((member) => (
                     <tr
                       key={member.id}
                       onClick={() => setSelectedMemberId(member.id)}
@@ -183,14 +224,14 @@ export default function MembersPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="rounded-3xl bg-slate-950 p-6 text-white">
-              <div className="flex items-start gap-4">
+            <div className="rounded-3xl bg-slate-950 p-5 text-white sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                 <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent text-xl font-bold text-slate-950">
                   {initials(detailQuery.data.name)}
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-display text-3xl font-bold">{detailQuery.data.name}</h3>
+                    <h3 className="font-display text-2xl font-bold sm:text-3xl">{detailQuery.data.name}</h3>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(detailQuery.data.status)}`}>
                       {detailQuery.data.status.replace('_', ' ')}
                     </span>
@@ -198,7 +239,7 @@ export default function MembersPage() {
                   <div className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
                     <div className="flex items-center gap-2">
                       <Mail size={16} />
-                      <span>{detailQuery.data.email}</span>
+                      <span className="break-all">{detailQuery.data.email}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone size={16} />
@@ -228,7 +269,7 @@ export default function MembersPage() {
                 type="button"
                 onClick={() => remindMutation.mutate(detailQuery.data.id)}
                 disabled={remindMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-yellow-300 disabled:opacity-60"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-yellow-300 disabled:opacity-60 sm:w-auto"
               >
                 <Send size={16} />
                 Send Reminder
@@ -237,40 +278,54 @@ export default function MembersPage() {
 
             <section className="space-y-3">
               <h4 className="font-display text-xl font-bold text-slate-900">Booking history</h4>
-              {detailQuery.data.bookings.map((booking) => (
-                <div key={booking.id} className="rounded-2xl border border-slate-200 px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">{booking.class_name}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {formatDate(booking.booked_at, { weekday: 'short', month: 'short', day: 'numeric' })} · {formatTime(booking.booked_at)} · {booking.trainer}
-                      </p>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(booking.status)}`}>
-                      {booking.status.replace('_', ' ')}
-                    </span>
-                  </div>
+              {detailQuery.data.bookings.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">
+                  No bookings found for this member yet.
                 </div>
-              ))}
+              ) : (
+                detailQuery.data.bookings.map((booking) => (
+                  <div key={booking.id} className="rounded-2xl border border-slate-200 px-4 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-slate-900">{booking.class_name}</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {formatDate(booking.booked_at, { weekday: 'short', month: 'short', day: 'numeric' })} / {formatTime(booking.booked_at)} / {booking.trainer}
+                        </p>
+                      </div>
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(booking.status)}`}>
+                        {booking.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </section>
 
             <section className="space-y-3">
               <h4 className="font-display text-xl font-bold text-slate-900">Payment status</h4>
-              {detailQuery.data.payments.map((payment) => (
-                <div key={payment.id} className="rounded-2xl border border-slate-200 px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">${payment.amount} · {payment.plan_type}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Due {formatDate(payment.due_date)} {payment.paid_date ? `· Paid ${formatDate(payment.paid_date)}` : ''}
-                      </p>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(payment.status)}`}>
-                      {payment.status}
-                    </span>
-                  </div>
+              {detailQuery.data.payments.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-5 text-sm text-slate-500">
+                  No payments found for this member yet.
                 </div>
-              ))}
+              ) : (
+                detailQuery.data.payments.map((payment) => (
+                  <div key={payment.id} className="rounded-2xl border border-slate-200 px-4 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          ${payment.amount} / {payment.plan_type}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Due {formatDate(payment.due_date)} {payment.paid_date ? `/ Paid ${formatDate(payment.paid_date)}` : ''}
+                        </p>
+                      </div>
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(payment.status)}`}>
+                        {payment.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </section>
           </div>
         )}
@@ -281,7 +336,7 @@ export default function MembersPage() {
         title="Add Member"
         onClose={() => setModalOpen(false)}
         footer={
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => setModalOpen(false)}

@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react';
+import { Dumbbell, LogOut, X } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
@@ -10,19 +10,29 @@ export default function Sidebar({ navItems, mobileOpen, onClose, user }) {
     logout();
     navigate('/login', { replace: true });
   };
+
   const content = (
-    <div className="flex h-full flex-col bg-sidebar px-5 py-6 text-slate-100">
-      <div className="mb-10 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-xl text-slate-900 shadow-lg shadow-yellow-400/25">
-          🏋️
+    <div className="flex h-full min-h-0 flex-col bg-sidebar px-4 py-5 text-slate-100 sm:px-5 sm:py-6">
+      <div className="mb-8 flex items-start justify-between gap-3 sm:mb-10">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-slate-900 shadow-lg shadow-yellow-400/25">
+            <Dumbbell size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-display text-xl font-bold">GymFlow</p>
+            <p className="truncate text-sm text-slate-400">FitZone Premium Gym</p>
+          </div>
         </div>
-        <div>
-          <p className="font-display text-xl font-bold">GymFlow</p>
-          <p className="text-sm text-slate-400">FitZone Premium Gym</p>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-slate-300 transition hover:bg-white/10 hover:text-white lg:hidden"
+        >
+          <X size={18} />
+        </button>
       </div>
 
-      <nav className="space-y-2">
+      <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -45,10 +55,10 @@ export default function Sidebar({ navItems, mobileOpen, onClose, user }) {
         })}
       </nav>
 
-      <div className="mt-auto rounded-3xl border border-white/10 bg-white/5 p-4">
+      <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Signed in</p>
         <p className="mt-2 text-base font-semibold text-white">{user?.name}</p>
-        <p className="text-sm text-slate-400">{user?.email}</p>
+        <p className="break-all text-sm text-slate-400">{user?.email}</p>
         <button
           type="button"
           onClick={handleLogout}
@@ -74,7 +84,7 @@ export default function Sidebar({ navItems, mobileOpen, onClose, user }) {
         onClick={onClose}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 transform overflow-hidden border-r border-white/5 transition-transform lg:hidden ${
+        className={`fixed inset-y-2 left-2 z-50 h-[calc(100%-1rem)] w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] transform overflow-hidden rounded-[2rem] border border-white/10 shadow-2xl transition-transform lg:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

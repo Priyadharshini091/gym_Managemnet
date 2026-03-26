@@ -18,6 +18,22 @@ from .utils import combine_date_and_time, month_window, plan_limit, scheduled_da
 BOOK_WORDS = ("book", "reserve", "sign me up", "join")
 CANCEL_WORDS = ("cancel", "drop", "remove")
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
+SCHEDULE_WORDS = ("class", "classes", "schedule", "available")
+PAYMENT_WORDS = ("payment", "payments", "invoice", "invoices", "bill", "bills", "due", "paid", "owe", "owed")
+PLAN_WORDS = ("plan", "membership")
+PERSONAL_BOOKING_WORDS = (
+    "my booking",
+    "my bookings",
+    "my class",
+    "my classes",
+    "am i booked",
+    "do i have",
+    "what do i have",
+    "upcoming booking",
+    "upcoming bookings",
+    "upcoming class",
+    "upcoming classes",
+)
 
 
 @dataclass
@@ -304,6 +320,22 @@ def extract_requested_day(message: str) -> date | None:
     return None
 
 
+def contains_any_phrase(message: str, phrases: tuple[str, ...]) -> bool:
+    return any(phrase in message for phrase in phrases)
+
+
+def has_booking_intent(message: str) -> bool:
+    return (
+        bool(re.search(r"\b(book|reserve)\b", message))
+        or "sign me up" in message
+        or bool(re.search(r"\bjoin\b.*\bclass\b", message))
+    )
+
+
+def has_cancel_intent(message: str) -> bool:
+    return bool(re.search(r"\b(cancel|drop|remove)\b", message))
+
+
 def candidate_sessions(db: Session, target_date: date | None = None, horizon_days: int = 7) -> list[ClassSessionOut]:
     if target_date:
         return get_classes_for_date(db, target_date)
@@ -313,6 +345,111 @@ def candidate_sessions(db: Session, target_date: date | None = None, horizon_day
     for offset in range(horizon_days + 1):
         sessions.extend(get_classes_for_date(db, today + timedelta(days=offset)))
     return [session for session in sessions if session.start_at >= datetime.now()]
+
+
+def upcoming_bookings_for_member(
+    db: Session,
+    member_id: int,
+    target_date: date | None = None,
+    limit: int = 5,
+) -> list[Booking]:
+    bookings = db.scalars(
+        select(Booking)
+        .join(Booking.gym_class)
+        .options(selectinload(Booking.gym_class))
+        .where(
+            Booking.member_id == member_id,
+            Booking.status == BookingStatus.confirmed,
+            Booking.booked_at >= datetime.now(),
+        )
+        .order_by(Booking.booked_at)
+        .limit(limit)
+    ).all()
+    if target_date:
+        bookings = [booking for booking in bookings if booking.booked_at.date() == target_date]
+    return bookings
+
+
+def format_time_label(target_time: time) -> str:
+    return target_time.strftime("%I:%M %p").lstrip("0")
+
+
+def format_session_option(session: ClassSessionOut, include_date: bool = True) -> str:
+    if include_date:
+        return f"{session.scheduled_date.strftime('%A')} at {format_time_label(session.start_time)} {session.name}"
+    return f"{format_time_label(session.start_time)} {session.name}"
+
+
+def format_booking_option(booking: Booking, include_date: bool = True) -> str:
+    if include_date:
+        return f"{booking.booked_at.strftime('%A')} at {format_time_label(booking.booked_at.time())} {booking.gym_class.name}"
+    return f"{format_time_label(booking.booked_at.time())} {booking.gym_class.name}"
+
+
+def format_session_list(sessions: list[ClassSessionOut], include_date: bool = True, limit: int = 4) -> str:
+    return ", ".join(format_session_option(session, include_date=include_date) for session in sessions[:limit])
+
+
+def format_booking_list(bookings: list[Booking], include_date: bool = True, limit: int = 4) -> str:
+    return ", ".join(format_booking_option(booking, include_date=include_date) for booking in bookings[:limit])
+
+
+def monthly_usage_summary(db: Session, member: Member) -> tuple[int, int | None]:
+    start, end = month_window()
+    used = (
+        db.scalar(
+            select(func.count(Booking.id)).where(
+                Booking.member_id == member.id,
+                Booking.booked_at >= datetime.combine(start, time.min),
+                Booking.booked_at < datetime.combine(end, time.min),
+                Booking.status != BookingStatus.cancelled,
+            )
+        )
+        or 0
+    )
+    return used, plan_limit(member.plan_type)
+
+
+def booking_request_specificity(message: str) -> int:
+    return sum(
+        value is not None
+        for value in (
+            extract_requested_day(message),
+            extract_class_type(message),
+            parse_time_from_text(message),
+        )
+    )
+
+
+def suggested_sessions(
+    db: Session,
+    requested_date: date | None,
+    requested_type: ClassType | None,
+    requested_time: time | None,
+    horizon_days: int = 7,
+    limit: int = 3,
+) -> list[ClassSessionOut]:
+    candidates = [session for session in candidate_sessions(db, requested_date, horizon_days) if session.spots_left > 0]
+    if requested_type:
+        typed_candidates = [session for session in candidates if session.class_type == requested_type]
+        if typed_candidates:
+            candidates = typed_candidates
+    if not candidates and requested_type:
+        candidates = [session for session in candidate_sessions(db, None, horizon_days) if session.spots_left > 0]
+        typed_candidates = [session for session in candidates if session.class_type == requested_type]
+        if typed_candidates:
+            candidates = typed_candidates
+    if requested_time and candidates:
+        candidates = sorted(
+            candidates,
+            key=lambda item: abs(
+                (
+                    datetime.combine(item.scheduled_date, item.start_time)
+                    - datetime.combine(item.scheduled_date, requested_time)
+                ).total_seconds()
+            ),
+        )
+    return candidates[:limit]
 
 
 def find_matching_session(db: Session, message: str) -> ClassSessionOut | None:
@@ -375,65 +512,13 @@ def find_matching_booking(db: Session, member_id: int, message: str) -> Booking 
 
 
 def infer_intent(db: Session, member: Member, message: str) -> IntentCandidate:
-    lowered = message.lower()
-
-    if "classes" in lowered and "tomorrow" in lowered:
-        tomorrow_sessions = get_classes_for_date(db, date.today() + timedelta(days=1))
-        if not tomorrow_sessions:
-            return IntentCandidate("There are no classes scheduled tomorrow.")
-        formatted = ", ".join(
-            f"{session.start_time.strftime('%I:%M %p').lstrip('0')} {session.name}"
-            for session in tomorrow_sessions[:4]
-        )
-        return IntentCandidate(f"Tomorrow's classes are {formatted}.")
-
-    if any(word in lowered for word in BOOK_WORDS):
-        session = find_matching_session(db, lowered)
-        if session:
-            return IntentCandidate(
-                reply_context=(
-                    f"I found {session.name} with {session.trainer} on "
-                    f"{session.scheduled_date.strftime('%A')} at {session.start_time.strftime('%I:%M %p').lstrip('0')}."
-                ),
-                action="book_class",
-                action_payload={
-                    "class_id": session.id,
-                    "scheduled_for": session.start_at.isoformat(),
-                    "class_name": session.name,
-                },
-            )
-
-    if any(word in lowered for word in CANCEL_WORDS):
-        booking = find_matching_booking(db, member.id, lowered)
-        if booking:
-            return IntentCandidate(
-                reply_context=(
-                    f"I found your {booking.gym_class.name} booking on "
-                    f"{booking.booked_at.strftime('%A %I:%M %p').lstrip('0')}."
-                ),
-                action="cancel_booking",
-                action_payload={
-                    "booking_id": booking.id,
-                    "class_id": booking.class_id,
-                    "scheduled_for": booking.booked_at.isoformat(),
-                    "class_name": booking.gym_class.name,
-                },
-            )
+    lowered = message.lower().strip()
+    requested_date = extract_requested_day(lowered)
+    requested_type = extract_class_type(lowered)
+    requested_time = parse_time_from_text(lowered)
 
     if "classes" in lowered and "left" in lowered and "month" in lowered:
-        start, end = month_window()
-        used = (
-            db.scalar(
-                select(func.count(Booking.id)).where(
-                    Booking.member_id == member.id,
-                    Booking.booked_at >= datetime.combine(start, time.min),
-                    Booking.booked_at < datetime.combine(end, time.min),
-                    Booking.status != BookingStatus.cancelled,
-                )
-            )
-            or 0
-        )
-        limit = plan_limit(member.plan_type)
+        used, limit = monthly_usage_summary(db, member)
         if limit is None:
             return IntentCandidate("Your VIP plan has unlimited classes this month.")
         return IntentCandidate(
@@ -449,21 +534,148 @@ def infer_intent(db: Session, member: Member, message: str) -> IntentCandidate:
         if not sessions:
             return IntentCandidate("We've got your back. I can help you ease in with the next beginner-friendly class.")
         suggestions = ", ".join(
-            f"{session.name} on {session.scheduled_date.strftime('%a')} at {session.start_time.strftime('%I:%M %p').lstrip('0')}"
+            f"{session.name} on {session.scheduled_date.strftime('%a')} at {format_time_label(session.start_time)}"
             for session in sessions
         )
         return IntentCandidate(
             f"It's totally okay to restart gently. Beginner-friendly options coming up are {suggestions}."
         )
 
-    latest_payment = db.scalar(
-        select(Payment).where(Payment.member_id == member.id).order_by(Payment.due_date.desc()).limit(1)
-    )
-    if latest_payment:
+    if has_booking_intent(lowered):
+        if booking_request_specificity(lowered) == 0:
+            options = suggested_sessions(db, None, None, None, horizon_days=3)
+            if options:
+                return IntentCandidate(
+                    "I can book a class for you. Good upcoming options are "
+                    f"{format_session_list(options)}. Tell me the day, class type, or time you want."
+                )
+            return IntentCandidate("I can book a class for you. Tell me the day, class type, or time you want.")
+
+        session = find_matching_session(db, lowered)
+        if session:
+            return IntentCandidate(
+                reply_context=(
+                    f"I found {session.name} with {session.trainer} on "
+                    f"{session.scheduled_date.strftime('%A')} at {format_time_label(session.start_time)}."
+                ),
+                action="book_class",
+                action_payload={
+                    "class_id": session.id,
+                    "scheduled_for": session.start_at.isoformat(),
+                    "class_name": session.name,
+                },
+            )
+
+        options = suggested_sessions(db, requested_date, requested_type, requested_time)
+        if options:
+            return IntentCandidate(
+                "I couldn't find an exact match. The closest options are "
+                f"{format_session_list(options)}. Tell me which one you'd like."
+            )
+        return IntentCandidate("I couldn't find a matching class in the next week. Tell me the day, class type, or time you want.")
+
+    if has_cancel_intent(lowered):
+        upcoming_bookings = upcoming_bookings_for_member(db, member.id)
+        if not upcoming_bookings:
+            return IntentCandidate("You don't have any upcoming bookings to cancel.")
+        if booking_request_specificity(lowered) == 0:
+            if len(upcoming_bookings) == 1:
+                booking = upcoming_bookings[0]
+                return IntentCandidate(
+                    reply_context=(
+                        f"I found your {booking.gym_class.name} booking on "
+                        f"{booking.booked_at.strftime('%A')} at {format_time_label(booking.booked_at.time())}."
+                    ),
+                    action="cancel_booking",
+                    action_payload={
+                        "booking_id": booking.id,
+                        "class_id": booking.class_id,
+                        "scheduled_for": booking.booked_at.isoformat(),
+                        "class_name": booking.gym_class.name,
+                    },
+                )
+            return IntentCandidate(
+                f"Your upcoming bookings are {format_booking_list(upcoming_bookings)}. Tell me which one you'd like to cancel."
+            )
+
+        booking = find_matching_booking(db, member.id, lowered)
+        if booking:
+            return IntentCandidate(
+                reply_context=(
+                    f"I found your {booking.gym_class.name} booking on "
+                    f"{booking.booked_at.strftime('%A')} at {format_time_label(booking.booked_at.time())}."
+                ),
+                action="cancel_booking",
+                action_payload={
+                    "booking_id": booking.id,
+                    "class_id": booking.class_id,
+                    "scheduled_for": booking.booked_at.isoformat(),
+                    "class_name": booking.gym_class.name,
+                },
+            )
         return IntentCandidate(
-            f"Your latest payment is {latest_payment.status.value} for "
-            f"{settings.currency_symbol}{float(latest_payment.amount):.0f}, due {latest_payment.due_date.isoformat()}."
+            f"I couldn't find that exact booking. Your upcoming bookings are {format_booking_list(upcoming_bookings)}."
         )
+
+    if contains_any_phrase(lowered, PERSONAL_BOOKING_WORDS):
+        member_bookings = upcoming_bookings_for_member(db, member.id, requested_date)
+        if member_bookings:
+            return IntentCandidate(f"Your upcoming bookings are {format_booking_list(member_bookings)}.")
+        if requested_date:
+            sessions = get_classes_for_date(db, requested_date)
+            if sessions:
+                return IntentCandidate(
+                    "You're not booked for anything then. Available classes are "
+                    f"{format_session_list(sessions, include_date=False)}."
+                )
+            return IntentCandidate("You're not booked for anything then, and there are no classes scheduled.")
+        return IntentCandidate("You don't have any upcoming bookings right now.")
+
+    if contains_any_phrase(lowered, SCHEDULE_WORDS):
+        if "week" in lowered:
+            sessions = candidate_sessions(db, horizon_days=7)
+            if requested_type:
+                sessions = [session for session in sessions if session.class_type == requested_type]
+            if not sessions:
+                return IntentCandidate("There are no matching classes scheduled in the next week.")
+            return IntentCandidate(f"The next classes this week are {format_session_list(sessions)}.")
+
+        target_date = requested_date or (date.today() if "today" in lowered else None)
+        if target_date:
+            sessions = get_classes_for_date(db, target_date)
+            if requested_type:
+                sessions = [session for session in sessions if session.class_type == requested_type]
+            if not sessions:
+                return IntentCandidate("There are no matching classes scheduled then.")
+            return IntentCandidate(f"Available classes are {format_session_list(sessions, include_date=False)}.")
+
+        sessions = candidate_sessions(db, horizon_days=5)
+        if requested_type:
+            sessions = [session for session in sessions if session.class_type == requested_type]
+        if sessions:
+            return IntentCandidate(f"Coming up next are {format_session_list(sessions)}.")
+
+    if contains_any_phrase(lowered, PLAN_WORDS):
+        used, limit = monthly_usage_summary(db, member)
+        if limit is None:
+            return IntentCandidate(
+                f"You're on the {member.plan_type.value} plan with unlimited classes. You've used {used} classes this month."
+            )
+        return IntentCandidate(
+            f"You're on the {member.plan_type.value} plan with {limit} classes per month. You've used {used}, so {max(limit - used, 0)} are left."
+        )
+
+    if contains_any_phrase(lowered, PAYMENT_WORDS):
+        latest_payment = db.scalar(
+            select(Payment).where(Payment.member_id == member.id).order_by(Payment.due_date.desc()).limit(1)
+        )
+        if latest_payment:
+            return IntentCandidate(
+                f"Your latest payment is {latest_payment.status.value} for "
+                f"{settings.currency_symbol}{float(latest_payment.amount):.0f}, due {latest_payment.due_date.isoformat()}."
+            )
+        return IntentCandidate("You don't have any payment records yet.")
+
     return IntentCandidate("I can help with schedules, bookings, membership details, and payments.")
 
 

@@ -196,7 +196,7 @@ class ChatMessageRequest(BaseModel):
     member_id: int
 
 
-class ChatHistoryItem(BaseModel):
+class ChatHistoryItem(ORMModel):
     id: int
     role: ChatRole
     content: str
@@ -207,3 +207,4 @@ class ChatResponse(BaseModel):
     reply: str
     action: str | None = None
     action_payload: dict[str, Any] | None = None
+    messages: list[ChatHistoryItem] = Field(default_factory=list)

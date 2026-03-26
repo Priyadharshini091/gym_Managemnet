@@ -28,15 +28,34 @@ def send_message(
     db: Session = Depends(get_db),
 ) -> ChatResponse:
     member = resolve_chat_member(db, current_user, payload.member_id)
-    db.add(ChatMessage(member_id=member.id, role=ChatRole.user, content=payload.message))
-    db.commit()
+    user_message = ChatMessage(member_id=member.id, role=ChatRole.user, content=payload.message)
 
-    service = GymChatbotService(db)
-    response = service.handle_message(member, payload.message)
+    try:
+        db.add(user_message)
+        db.flush()
 
-    db.add(ChatMessage(member_id=member.id, role=ChatRole.assistant, content=response.reply))
-    db.commit()
-    return response
+        service = GymChatbotService(db)
+        response = service.handle_message(member, payload.message)
+
+        assistant_message = ChatMessage(member_id=member.id, role=ChatRole.assistant, content=response.reply)
+        db.add(assistant_message)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to process chat message",
+        ) from exc
+
+    return ChatResponse(
+        reply=response.reply,
+        action=response.action,
+        action_payload=response.action_payload,
+        messages=[
+            ChatHistoryItem.model_validate(user_message),
+            ChatHistoryItem.model_validate(assistant_message),
+        ],
+    )
 
 
 @router.get("/history", response_model=list[ChatHistoryItem])

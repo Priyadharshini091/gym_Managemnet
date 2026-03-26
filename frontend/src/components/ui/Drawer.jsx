@@ -9,12 +9,12 @@ export default function Drawer({ open, title, onClose, children }) {
         onClick={onClose}
       />
       <aside
-        className={`absolute right-0 top-0 h-full w-full max-w-xl transform border-l border-slate-200 bg-white shadow-2xl transition-transform ${
+        className={`absolute right-0 top-0 h-full w-full transform border-l border-slate-200 bg-white shadow-2xl transition-transform sm:max-w-xl ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <h3 className="font-display text-xl font-bold text-slate-900">{title}</h3>
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6 sm:py-5">
+          <h3 className="min-w-0 truncate font-display text-lg font-bold text-slate-900 sm:text-xl">{title}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -23,7 +23,7 @@ export default function Drawer({ open, title, onClose, children }) {
             Close
           </button>
         </div>
-        <div className="h-[calc(100%-81px)] overflow-y-auto px-6 py-5">{children}</div>
+        <div className="h-[calc(100%-73px)] overflow-y-auto px-4 py-4 sm:h-[calc(100%-81px)] sm:px-6 sm:py-5">{children}</div>
       </aside>
     </div>
   );

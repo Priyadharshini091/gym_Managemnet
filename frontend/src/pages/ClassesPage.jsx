@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, UserRound } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
-import Modal from '../components/ui/Modal';
 import LoadingSkeleton from '../components/ui/LoadingSkeleton';
-import { useAuthStore } from '../store/authStore';
+import Modal from '../components/ui/Modal';
 import { classTypeStyles, formatDate, formatTime, initials, startOfWeek, toDateInputValue } from '../lib/format';
+import { useAuthStore } from '../store/authStore';
 
 const START_HOUR = 5;
 const END_HOUR = 22;
@@ -38,7 +38,7 @@ function getGridPlacement(session) {
 function DayColumn({ day, sessions, onSelect }) {
   return (
     <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
             {day.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -52,26 +52,32 @@ function DayColumn({ day, sessions, onSelect }) {
         </span>
       </div>
       <div className="space-y-3">
-        {sessions.map((session) => (
-          <button
-            key={`${session.id}-${session.start_at}`}
-            type="button"
-            onClick={() => onSelect(session)}
-            className={`w-full rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 ${classTypeStyles(session.class_type)}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">{session.name}</p>
-                <p className="mt-1 text-sm opacity-80">
-                  {formatTime(session.start_at)} · {session.trainer}
-                </p>
+        {sessions.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            No classes scheduled for this day.
+          </div>
+        ) : (
+          sessions.map((session) => (
+            <button
+              key={`${session.id}-${session.start_at}`}
+              type="button"
+              onClick={() => onSelect(session)}
+              className={`w-full rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 ${classTypeStyles(session.class_type)}`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold">{session.name}</p>
+                  <p className="mt-1 text-sm opacity-80">
+                    {formatTime(session.start_at)} / {session.trainer}
+                  </p>
+                </div>
+                <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold">
+                  {session.spots_left} left
+                </span>
               </div>
-              <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-bold">
-                {session.spots_left} left
-              </span>
-            </div>
-          </button>
-        ))}
+            </button>
+          ))
+        )}
       </div>
     </div>
   );
@@ -99,7 +105,7 @@ export default function ClassesPage() {
       return data;
     },
     onSuccess: () => {
-      toast.success('✅ Booked! Reminder will be sent 1hr before');
+      toast.success('Booked! Reminder will be sent 1 hour before.');
       setSelectedClass(null);
       queryClient.invalidateQueries({ queryKey: ['classes'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
@@ -130,7 +136,7 @@ export default function ClassesPage() {
   if (classesQuery.isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LoadingSkeleton className="h-10 w-56" />
           <LoadingSkeleton className="h-10 w-40" />
         </div>
@@ -154,15 +160,15 @@ export default function ClassesPage() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Schedule</p>
-            <h2 className="mt-2 font-display text-3xl font-bold text-slate-900">
+            <h2 className="mt-2 font-display text-2xl font-bold text-slate-900 sm:text-3xl">
               {formatDate(weekDays[0], { month: 'long', day: 'numeric' })} - {formatDate(weekDays[6], { month: 'long', day: 'numeric' })}
             </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={() => shiftWeek(-1)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
               <ChevronLeft size={18} />
               Prev
@@ -176,7 +182,7 @@ export default function ClassesPage() {
             <button
               type="button"
               onClick={() => shiftWeek(1)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
               Next
               <ChevronRight size={18} />
@@ -252,7 +258,7 @@ export default function ClassesPage() {
           </div>
         </div>
 
-        <div className="space-y-4 xl:hidden">
+        <div className="grid gap-4 md:grid-cols-2 xl:hidden">
           {weekDays.map((day) => {
             const dayKey = toDateInputValue(day);
             const daySessions = sessions.filter((session) => session.scheduled_date === dayKey);
@@ -267,11 +273,11 @@ export default function ClassesPage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">How it works</p>
                 <h3 className="mt-2 font-display text-2xl font-bold text-slate-900">Book by tapping any class</h3>
               </div>
-              <CalendarDays className="text-yellow-500" />
+              <CalendarDays className="shrink-0 text-yellow-500" />
             </div>
             <div className="mt-5 space-y-3 text-sm text-slate-600">
               <div className="rounded-2xl bg-slate-50 p-4">
-                Capacity is live and reflected by each class card’s spots-left badge.
+                Capacity is live and reflected by each class card's spots-left badge.
               </div>
               <div className="rounded-2xl bg-slate-50 p-4">
                 Confirmed bookings trigger reminders one hour before the class.
@@ -292,15 +298,15 @@ export default function ClassesPage() {
                   key={`peek-${session.id}-${session.start_at}`}
                   type="button"
                   onClick={() => setSelectedClass(session)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
+                  className="flex w-full flex-col gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <p className="font-semibold text-slate-900">{session.name}</p>
                     <p className="text-sm text-slate-500">
-                      {formatDate(session.start_at, { weekday: 'short', month: 'short', day: 'numeric' })} · {formatTime(session.start_at)}
+                      {formatDate(session.start_at, { weekday: 'short', month: 'short', day: 'numeric' })} / {formatTime(session.start_at)}
                     </p>
                   </div>
-                  <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase ${classTypeStyles(session.class_type)}`}>
+                  <span className={`inline-flex shrink-0 rounded-full border px-3 py-1 text-xs font-bold uppercase ${classTypeStyles(session.class_type)}`}>
                     {session.class_type}
                   </span>
                 </button>
@@ -315,7 +321,7 @@ export default function ClassesPage() {
         title={selectedClass?.name || 'Class details'}
         onClose={() => setSelectedClass(null)}
         footer={
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => setSelectedClass(null)}

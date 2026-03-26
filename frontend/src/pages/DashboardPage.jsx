@@ -14,13 +14,13 @@ const STATUS_COLORS = {
 function StatCard({ icon: Icon, label, value, hint }) {
   return (
     <div className="panel p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-500">{label}</p>
-          <p className="mt-3 font-display text-4xl font-bold text-slate-900">{value}</p>
+          <p className="mt-3 break-words font-display text-3xl font-bold text-slate-900 sm:text-4xl">{value}</p>
           <p className="mt-2 text-sm text-slate-500">{hint}</p>
         </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-600">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-600">
           <Icon size={22} />
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function DashboardPage() {
   if (statsQuery.isLoading || revenueQuery.isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="panel p-5">
               <LoadingSkeleton className="h-4 w-24" />
@@ -86,7 +86,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={Users}
           label="Total Members"
@@ -97,7 +97,7 @@ export default function DashboardPage() {
           icon={CalendarDays}
           label="Active Today"
           value={stats.active_today}
-          hint="Members with confirmed classes on today’s roster."
+          hint="Members with confirmed classes on today's roster."
         />
         <StatCard
           icon={CreditCard}
@@ -115,7 +115,7 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 xl:grid-cols-[1.45fr_0.85fr]">
         <div className="panel p-6">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Revenue</p>
               <h2 className="mt-2 font-display text-2xl font-bold text-slate-900">Monthly trend</h2>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenue}>
                 <defs>
@@ -176,7 +176,10 @@ export default function DashboardPage() {
             </div>
             <div className="grid gap-3">
               {pieData.map((entry) => (
-                <div key={entry.name} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                <div
+                  key={entry.name}
+                  className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
+                >
                   <div className="flex items-center gap-3">
                     <span className="status-dot" style={{ backgroundColor: STATUS_COLORS[entry.name] }} />
                     <span className="font-semibold capitalize text-slate-700">{entry.name.replace('_', ' ')}</span>
@@ -200,7 +203,7 @@ export default function DashboardPage() {
             <div className="mt-5 space-y-3">
               {stats.at_risk_members.map((member) => (
                 <div key={member.id} className="rounded-2xl border border-yellow-200 bg-white px-4 py-4">
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white">
                         {initials(member.name)}
@@ -222,10 +225,10 @@ export default function DashboardPage() {
       </section>
 
       <section className="panel p-6">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Operations</p>
-            <h2 className="mt-2 font-display text-2xl font-bold text-slate-900">Today’s classes</h2>
+            <h2 className="mt-2 font-display text-2xl font-bold text-slate-900">Today's classes</h2>
           </div>
           <div className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">
             {stats.today_classes.length} scheduled
@@ -234,17 +237,17 @@ export default function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-2">
           {stats.today_classes.map((session) => (
             <div key={`${session.id}-${session.start_at}`} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${classTypeStyles(session.class_type)}`}>
                     {session.class_type}
                   </span>
                   <h3 className="mt-3 text-lg font-bold text-slate-900">{session.name}</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    {formatDate(session.start_at, { weekday: 'short', month: 'short', day: 'numeric' })} · {formatTime(session.start_at)} · {session.trainer}
+                    {formatDate(session.start_at, { weekday: 'short', month: 'short', day: 'numeric' })} / {formatTime(session.start_at)} / {session.trainer}
                   </p>
                 </div>
-                <ArrowUpRight className="text-slate-300" />
+                <ArrowUpRight className="shrink-0 text-slate-300" />
               </div>
               <div className="mt-5">
                 <div className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-600">

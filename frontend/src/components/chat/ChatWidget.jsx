@@ -5,7 +5,42 @@ import toast from 'react-hot-toast';
 import api from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 
-const QUICK_REPLIES = ['Today’s classes 📅', 'Book a class ➕', 'My plan 💳'];
+const QUICK_REPLIES = ["Today's classes", 'Book a class', 'My plan'];
+const YES_REPLIES = ['yes', 'y', 'yeah', 'yep', 'sure', 'ok', 'okay', 'confirm', 'go ahead', 'do it', 'please do'];
+const NO_REPLIES = ['no', 'n', 'nope', 'cancel', 'stop', 'not now'];
+
+function buildLocalMessage(role, content) {
+  return {
+    id: `local-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    content,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function mergeMessages(current, incoming) {
+  const merged = new Map();
+
+  [...current, ...incoming].forEach((message) => {
+    const key = typeof message.id === 'number' ? `db-${message.id}` : `tmp-${message.id}`;
+    if (!merged.has(key)) {
+      merged.set(key, message);
+    }
+  });
+
+  return [...merged.values()].sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
+}
+
+function parseConfirmationReply(value) {
+  const normalized = value.trim().toLowerCase().replace(/[.!?]+$/g, '');
+  if (YES_REPLIES.includes(normalized)) {
+    return true;
+  }
+  if (NO_REPLIES.includes(normalized)) {
+    return false;
+  }
+  return null;
+}
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -28,9 +63,21 @@ export default function ChatWidget() {
 
   useEffect(() => {
     if (historyQuery.data) {
-      setMessages(historyQuery.data);
+      setMessages((current) => mergeMessages(current, historyQuery.data));
     }
   }, [historyQuery.data]);
+
+  useEffect(() => {
+    if (historyQuery.error) {
+      toast.error(historyQuery.error.response?.data?.detail || 'Could not load chat history');
+    }
+  }, [historyQuery.error]);
+
+  useEffect(() => {
+    setMessages([]);
+    setPendingAction(null);
+    setDraft('');
+  }, [member?.id]);
 
   const sendMutation = useMutation({
     mutationFn: async (content) => {
@@ -51,46 +98,33 @@ export default function ChatWidget() {
       setDraft('');
       return { optimisticId: optimisticMessage.id };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, _content, context) => {
       setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: data.reply,
-          timestamp: new Date().toISOString(),
-        },
+        ...current.filter((message) => message.id !== context?.optimisticId),
+        ...(data.messages?.length ? data.messages : [buildLocalMessage('assistant', data.reply)]),
       ]);
       setPendingAction(data.action ? { action: data.action, payload: data.action_payload } : null);
+      if (member?.id) {
+        queryClient.invalidateQueries({ queryKey: ['chat-history', member.id] });
+      }
     },
-    onError: (error) => {
+    onError: (error, _content, context) => {
+      setMessages((current) => current.filter((message) => message.id !== context?.optimisticId));
       toast.error(error.response?.data?.detail || 'The assistant is unavailable right now');
     },
   });
 
-  const submitMessage = (content = draft) => {
-    const value = content.trim();
-    if (!value || sendMutation.isPending || !member?.id) {
-      return;
-    }
-    sendMutation.mutate(value);
-  };
-
-  const handleAction = async (confirmed) => {
+  const handleAction = async (confirmed, userReply = null) => {
     if (!pendingAction) {
       return;
     }
 
+    if (userReply) {
+      setMessages((current) => [...current, buildLocalMessage('user', userReply)]);
+    }
+
     if (!confirmed) {
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: 'No problem. I left everything unchanged.',
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      setMessages((current) => [...current, buildLocalMessage('assistant', 'No problem. I left everything unchanged.')]);
       setPendingAction(null);
       return;
     }
@@ -103,31 +137,15 @@ export default function ChatWidget() {
           scheduled_for: pendingAction.payload.scheduled_for,
           member_id: member.id,
         });
-        setMessages((current) => [
-          ...current,
-          {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: `Booked! You’re in for ${pendingAction.payload.class_name}.`,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        setMessages((current) => [...current, buildLocalMessage('assistant', `Booked! You're in for ${pendingAction.payload.class_name}.`)]);
         toast.success('Class booked');
       } else if (pendingAction.action === 'cancel_booking') {
         await api.delete(`/api/bookings/${pendingAction.payload.booking_id}`);
-        setMessages((current) => [
-          ...current,
-          {
-            id: `assistant-${Date.now()}`,
-            role: 'assistant',
-            content: `Done. I cancelled your ${pendingAction.payload.class_name} booking.`,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
+        setMessages((current) => [...current, buildLocalMessage('assistant', `Done. I cancelled your ${pendingAction.payload.class_name} booking.`)]);
         toast.success('Booking cancelled');
       }
       setPendingAction(null);
-      queryClient.invalidateQueries({ queryKey: ['chat-history'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-history', member.id] });
       queryClient.invalidateQueries({ queryKey: ['portal-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['classes'] });
@@ -137,6 +155,26 @@ export default function ChatWidget() {
     } finally {
       setActionPending(false);
     }
+  };
+
+  const submitMessage = (content = draft) => {
+    const value = content.trim();
+    if (!value || sendMutation.isPending || actionPending || !member?.id) {
+      return;
+    }
+
+    const confirmation = pendingAction ? parseConfirmationReply(value) : null;
+    if (confirmation !== null) {
+      setDraft('');
+      void handleAction(confirmation, value);
+      return;
+    }
+
+    if (pendingAction) {
+      setPendingAction(null);
+    }
+
+    sendMutation.mutate(value);
   };
 
   return (
@@ -174,7 +212,7 @@ export default function ChatWidget() {
 
           {member && messages.length === 0 && !historyQuery.isLoading ? (
             <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
-              Ask me about today’s classes, your plan, or booking help. I’ll use real GymFlow data.
+              Ask me about today's classes, your plan, or booking help. I'll use real GymFlow data.
             </div>
           ) : null}
 
@@ -182,9 +220,7 @@ export default function ChatWidget() {
             <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[85%] rounded-[1.5rem] px-4 py-3 text-sm shadow-sm ${
-                  message.role === 'user'
-                    ? 'bg-slate-950 text-white'
-                    : 'border border-slate-200 bg-white text-slate-700'
+                  message.role === 'user' ? 'bg-slate-950 text-white' : 'border border-slate-200 bg-white text-slate-700'
                 }`}
               >
                 {message.content}
@@ -226,10 +262,11 @@ export default function ChatWidget() {
                 <Sparkles size={16} />
                 Pending action
               </div>
+              <p className="mb-3 text-xs text-yellow-900">Reply with yes or no, or use the buttons below.</p>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => handleAction(true)}
+                  onClick={() => handleAction(true, 'Yes')}
                   disabled={actionPending}
                   className="rounded-xl bg-slate-950 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
@@ -237,7 +274,7 @@ export default function ChatWidget() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleAction(false)}
+                  onClick={() => handleAction(false, 'No')}
                   disabled={actionPending}
                   className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 disabled:opacity-60"
                 >
@@ -263,7 +300,7 @@ export default function ChatWidget() {
             />
             <button
               type="submit"
-              disabled={!member || sendMutation.isPending}
+              disabled={!member || sendMutation.isPending || actionPending}
               className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-accent text-slate-950 transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <SendHorizontal size={18} />

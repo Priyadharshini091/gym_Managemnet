@@ -1,23 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellRing, CreditCard, ReceiptText, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/client';
 import LoadingSkeleton from '../components/ui/LoadingSkeleton';
 import { formatCurrency, formatDate, statusBadge } from '../lib/format';
-import { useState } from 'react';
 
 const FILTERS = ['all', 'paid', 'due', 'overdue'];
 
 function SummaryCard({ icon: Icon, label, value, hint }) {
   return (
     <div className="panel p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-500">{label}</p>
-          <p className="mt-3 font-display text-4xl font-bold text-slate-900">{value}</p>
+          <p className="mt-3 break-words font-display text-3xl font-bold text-slate-900 sm:text-4xl">{value}</p>
           <p className="mt-2 text-sm text-slate-500">{hint}</p>
         </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-600">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-100 text-yellow-600">
           <Icon size={22} />
         </div>
       </div>
@@ -56,7 +56,7 @@ export default function PaymentsPage() {
   if (paymentsQuery.isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="panel p-5">
               <LoadingSkeleton className="h-5 w-24" />
@@ -82,7 +82,7 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 xl:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <SummaryCard
           icon={TrendingUp}
           label="Monthly Revenue"
@@ -125,7 +125,7 @@ export default function PaymentsPage() {
             type="button"
             onClick={() => bulkMutation.mutate()}
             disabled={bulkMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-yellow-300 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-yellow-300 disabled:opacity-60 sm:w-auto"
           >
             <BellRing size={18} />
             Send Bulk Reminder
@@ -133,7 +133,36 @@ export default function PaymentsPage() {
         </div>
       </section>
 
-      <section className="panel overflow-hidden">
+      <section className="space-y-3 md:hidden">
+        {payments.length === 0 ? (
+          <div className="panel p-5 text-sm text-slate-500">No payments found for this filter.</div>
+        ) : (
+          payments.map((payment) => (
+            <div key={payment.id} className="panel p-4">
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="font-semibold text-slate-900">{payment.member_name}</p>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${statusBadge(payment.status)}`}>
+                    {payment.status}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-700">
+                    {payment.plan_type}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800">{formatCurrency(payment.amount)}</span>
+                </div>
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p>Due: {formatDate(payment.due_date)}</p>
+                  <p>Paid: {formatDate(payment.paid_date)}</p>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </section>
+
+      <section className="panel hidden overflow-hidden md:block">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
