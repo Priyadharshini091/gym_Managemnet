@@ -54,6 +54,7 @@ def my_bookings(
     return [booking_to_schema(booking) for booking in bookings]
 
 
+@router.post("", response_model=BookingOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=BookingOut, status_code=status.HTTP_201_CREATED)
 def create_booking(
     payload: BookingCreate,
