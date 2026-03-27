@@ -131,6 +131,96 @@ export const partnerProducts = [
   },
 ];
 
+export const membershipPlans = [
+  {
+    id: 'basic',
+    slug: 'basic',
+    name: 'Starter',
+    price: 29,
+    billing: 'per month',
+    badge: 'Best for beginners',
+    highlight: false,
+    summary: 'A steady starting point for members who want gym-floor access and a small class routine.',
+    idealFor: 'New joiners, flexible schedules, light weekly attendance.',
+    features: [
+      'Open gym access every day',
+      'Up to 12 class bookings each month',
+      'Progress check-in with the front desk team',
+      'Online payments and account management',
+    ],
+  },
+  {
+    id: 'premium',
+    slug: 'premium',
+    name: 'Momentum',
+    price: 49,
+    billing: 'per month',
+    badge: 'Most popular',
+    highlight: true,
+    summary: 'The balanced plan for members who want regular class access, coaching structure, and accountability.',
+    idealFor: 'Busy professionals, consistency-focused members, hybrid strength plus class routines.',
+    features: [
+      'Everything in Starter',
+      'Up to 20 class bookings each month',
+      'Priority access to popular time slots',
+      'Monthly body-composition and progress review',
+    ],
+  },
+  {
+    id: 'vip',
+    slug: 'vip',
+    name: 'Peak',
+    price: 89,
+    billing: 'per month',
+    badge: 'High-touch support',
+    highlight: false,
+    summary: 'The premium membership for members who want full flexibility, recovery extras, and fast support.',
+    idealFor: 'Transformation clients, daily users, members wanting the smoothest all-access experience.',
+    features: [
+      'Unlimited class bookings',
+      'Priority support for billing and scheduling',
+      'Recovery-focused programming add-ons',
+      'Preferred access to special events and workshops',
+    ],
+  },
+];
+
+export const membershipPerks = [
+  {
+    id: 'classes',
+    title: 'Structured Classes',
+    body: 'Strength, HIIT, yoga, and pilates sessions are built into the same member experience.',
+  },
+  {
+    id: 'payments',
+    title: 'Simple Billing',
+    body: 'Invoices, renewals, and online payments live in one place so front-desk follow-up gets easier.',
+  },
+  {
+    id: 'support',
+    title: 'Real Accountability',
+    body: 'From starter orientation to progress check-ins, members get clear next steps instead of guesswork.',
+  },
+];
+
+export const membershipFaqs = [
+  {
+    id: 'trial',
+    question: 'Can I enquire before registering?',
+    answer: 'Yes. Use the membership enquiry form to ask about pricing, visits, classes, or the best plan for your goals.',
+  },
+  {
+    id: 'upgrade',
+    question: 'Can members change plans later?',
+    answer: 'Yes. Plans can be upgraded as routines change, especially when members want more classes or higher-touch support.',
+  },
+  {
+    id: 'billing',
+    question: 'Do plans work with the online payment flow?',
+    answer: 'Yes. Each plan feeds into the same member billing experience, so dues and invoices stay clear online.',
+  },
+];
+
 export const featureStats = [
   { id: 'members', label: 'Active Members', value: '1,200+' },
   { id: 'sessions', label: 'Classes Every Week', value: '60+' },

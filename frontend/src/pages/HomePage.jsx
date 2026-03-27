@@ -1,6 +1,7 @@
 import { ArrowRight, CreditCard, Dumbbell, Images, Quote, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { faqs, featureStats, facilityHighlights, galleryShots, partnerProducts, testimonials } from '../data/siteContent';
+import { faqs, featureStats, facilityHighlights, galleryShots, membershipPlans, partnerProducts, testimonials } from '../data/siteContent';
+import { formatCurrency } from '../lib/format';
 
 export default function HomePage() {
   return (
@@ -21,10 +22,10 @@ export default function HomePage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                to="/register"
+                to="/membership-plans"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3 font-semibold text-white transition hover:bg-slate-900"
               >
-                Join the Gym
+                View Memberships
                 <ArrowRight size={18} />
               </Link>
               <Link
@@ -114,6 +115,45 @@ export default function HomePage() {
               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">{item.title}</p>
               <p className="mt-4 text-base leading-7 text-slate-600">{item.body}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">Membership Plans</p>
+            <h2 className="mt-3 font-display text-3xl font-bold text-slate-950 sm:text-4xl">Make pricing and next steps feel clear.</h2>
+          </div>
+          <Link to="/membership-plans" className="text-sm font-semibold text-slate-950 underline">
+            Explore all plans
+          </Link>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          {membershipPlans.map((plan) => (
+            <article
+              key={plan.id}
+              className={`rounded-[2rem] border p-6 shadow-sm ${
+                plan.highlight ? 'border-yellow-300 bg-yellow-50/60' : 'border-slate-200 bg-white'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] text-slate-700">
+                  {plan.badge}
+                </span>
+                <span className="font-display text-3xl font-bold text-slate-950">{formatCurrency(plan.price)}</span>
+              </div>
+              <h3 className="mt-5 font-display text-2xl font-bold text-slate-950">{plan.name}</h3>
+              <p className="mt-2 text-sm text-slate-600">{plan.summary}</p>
+              <p className="mt-4 text-sm font-semibold text-slate-500">{plan.idealFor}</p>
+              <Link
+                to={`/register?plan=${plan.slug}`}
+                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-950 underline"
+              >
+                Choose plan
+                <ArrowRight size={16} />
+              </Link>
+            </article>
           ))}
         </div>
       </section>

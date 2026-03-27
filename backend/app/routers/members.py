@@ -26,6 +26,7 @@ def at_risk_members(_: User = Depends(require_owner), db: Session = Depends(get_
     return [member_list_item(db, member) for member in members]
 
 
+@router.get("", response_model=list[MemberListItem], include_in_schema=False)
 @router.get("/", response_model=list[MemberListItem])
 def list_members(
     q: str | None = None,
@@ -43,6 +44,7 @@ def list_members(
     return [member_list_item(db, member) for member in members]
 
 
+@router.post("", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_member(payload: MemberCreate, _: User = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
     existing_user = db.scalar(select(User).where(User.email == payload.email))

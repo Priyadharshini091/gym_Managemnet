@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
     frontend_origin: str = "http://localhost:5173"
     frontend_origins: str | None = None
+    auto_seed_demo_data: bool = True
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     reminder_window_minutes: int = 60

@@ -14,6 +14,7 @@ from ..services import payment_to_schema, sync_payment_statuses
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 
+@router.get("", response_model=list[PaymentOut], include_in_schema=False)
 @router.get("/", response_model=list[PaymentOut])
 def list_payments(
     status: str | None = None,
@@ -36,6 +37,7 @@ def list_payments(
     return [payment_to_schema(payment) for payment in payments]
 
 
+@router.post("", response_model=PaymentOut, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", response_model=PaymentOut, status_code=status.HTTP_201_CREATED)
 def create_payment(payload: PaymentCreate, _: User = Depends(require_owner), db: Session = Depends(get_db)) -> PaymentOut:
     member = db.scalar(select(Member).where(Member.id == payload.member_id))

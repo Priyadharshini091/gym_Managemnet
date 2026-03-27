@@ -13,11 +13,13 @@ from ..utils import normalize_day
 router = APIRouter(prefix="/api/classes", tags=["classes"])
 
 
+@router.get("", response_model=list[ClassSessionOut], include_in_schema=False)
 @router.get("/", response_model=list[ClassSessionOut])
 def list_classes(week: str | None = None, _: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ClassSessionOut]:
     return get_week_sessions(db, week)
 
 
+@router.post("", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_class(payload: GymClassCreate, _: User = Depends(require_owner), db: Session = Depends(get_db)) -> dict:
     gym_class = GymClass(

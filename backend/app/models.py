@@ -50,6 +50,12 @@ class PaymentStatus(str, Enum):
     overdue = "overdue"
 
 
+class InquiryStatus(str, Enum):
+    new = "new"
+    contacted = "contacted"
+    closed = "closed"
+
+
 class ChatRole(str, Enum):
     user = "user"
     assistant = "assistant"
@@ -140,6 +146,25 @@ class Payment(Base):
     plan_type: Mapped[PlanType] = mapped_column(SqlEnum(PlanType, native_enum=False))
 
     member: Mapped[Member] = relationship(back_populates="payments")
+
+
+class MembershipEnquiry(Base):
+    __tablename__ = "membership_enquiries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    preferred_plan: Mapped[PlanType | None] = mapped_column(SqlEnum(PlanType, native_enum=False), nullable=True, index=True)
+    fitness_goal: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    preferred_contact: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    message: Mapped[str] = mapped_column(Text)
+    status: Mapped[InquiryStatus] = mapped_column(
+        SqlEnum(InquiryStatus, native_enum=False),
+        default=InquiryStatus.new,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
 class ChatMessage(Base):

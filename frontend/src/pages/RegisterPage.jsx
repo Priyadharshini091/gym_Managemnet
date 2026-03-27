@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { ArrowRight, Dumbbell } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/client';
+import { membershipPlans } from '../data/siteContent';
 import { useAuthStore } from '../store/authStore';
 
 const initialForm = {
@@ -11,12 +12,21 @@ const initialForm = {
   password: '',
   name: '',
   phone: '',
+  planType: 'basic',
 };
 
 export default function RegisterPage() {
   const [form, setForm] = useState(initialForm);
   const setSession = useAuthStore((state) => state.setSession);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const requestedPlan = searchParams.get('plan');
+    if (requestedPlan && membershipPlans.some((plan) => plan.slug === requestedPlan)) {
+      setForm((current) => ({ ...current, planType: requestedPlan }));
+    }
+  }, [searchParams]);
 
   const registerMutation = useMutation({
     mutationFn: async (payload) => {
@@ -46,7 +56,7 @@ export default function RegisterPage() {
       password: form.password,
       name: form.name,
       phone: form.phone || null,
-      plan_type: 'basic',
+      plan_type: form.planType,
     });
   };
 
@@ -86,7 +96,7 @@ export default function RegisterPage() {
             <div className="mb-8">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Get started</p>
               <h2 className="mt-3 font-display text-3xl font-bold">Register</h2>
-              <p className="mt-2 text-slate-500">Fill in your details to create member access.</p>
+                <p className="mt-2 text-slate-500">Fill in your details and choose the membership plan that fits best.</p>
             </div>
 
             <form className="space-y-4" onSubmit={submit}>
@@ -129,6 +139,21 @@ export default function RegisterPage() {
                   onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-yellow-400 focus:bg-white"
                 />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-600">Membership plan</span>
+                <select
+                  value={form.planType}
+                  onChange={(event) => setForm((current) => ({ ...current, planType: event.target.value }))}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-yellow-400 focus:bg-white"
+                >
+                  {membershipPlans.map((plan) => (
+                    <option key={plan.slug} value={plan.slug}>
+                      {plan.name} / ${plan.price} {plan.billing}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <button

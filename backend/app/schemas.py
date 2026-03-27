@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from .models import BookingStatus, ChatRole, ClassType, MemberStatus, PaymentStatus, PlanType, UserRole
+from .models import BookingStatus, ChatRole, ClassType, InquiryStatus, MemberStatus, PaymentStatus, PlanType, UserRole
 
 
 class ORMModel(BaseModel):
@@ -189,6 +189,29 @@ class DashboardStatsOut(BaseModel):
 class MessageResponse(BaseModel):
     message: str
     meta: dict[str, Any] | None = None
+
+
+class MembershipEnquiryCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    phone: str | None = Field(default=None, max_length=30)
+    preferred_plan: PlanType | None = None
+    fitness_goal: str | None = Field(default=None, max_length=120)
+    preferred_contact: str | None = Field(default=None, max_length=30)
+    message: str = Field(min_length=10, max_length=1000)
+
+
+class MembershipEnquiryOut(ORMModel):
+    id: int
+    name: str
+    email: EmailStr
+    phone: str | None
+    preferred_plan: PlanType | None
+    fitness_goal: str | None
+    preferred_contact: str | None
+    message: str
+    status: InquiryStatus
+    created_at: datetime
 
 
 class ChatMessageRequest(BaseModel):

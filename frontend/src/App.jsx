@@ -12,6 +12,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import MemberPortalPage from './pages/MemberPortalPage';
 import MembersPage from './pages/MembersPage';
+import MembershipPlansPage from './pages/MembershipPlansPage';
 import PayOnlinePage from './pages/PayOnlinePage';
 import PaymentsPage from './pages/PaymentsPage';
 import ProductsPage from './pages/ProductsPage';
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/membership-plans" element={<MembershipPlansPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/testimonials" element={<TestimonialsPage />} />
           <Route path="/products" element={<ProductsPage />} />

@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .routers import auth, bookings, chat, classes, dashboard, members, payments, trainer
+from .demo_seed import ensure_demo_data
+from .routers import auth, bookings, chat, classes, dashboard, members, membership_enquiries, payments, trainer
 from .services import queue_booking_reminders, sync_payment_statuses
 
 
@@ -32,6 +33,9 @@ def payment_job() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    if settings.auto_seed_demo_data:
+        with SessionLocal() as db:
+            ensure_demo_data(db)
     scheduler.add_job(reminder_job, "interval", minutes=15, id="booking-reminders", replace_existing=True)
     scheduler.add_job(payment_job, "interval", hours=12, id="payment-status-sync", replace_existing=True)
     if not scheduler.running:
@@ -59,6 +63,7 @@ app.include_router(members.router)
 app.include_router(classes.router)
 app.include_router(bookings.router)
 app.include_router(payments.router)
+app.include_router(membership_enquiries.router)
 app.include_router(chat.router)
 app.include_router(trainer.router)
 
